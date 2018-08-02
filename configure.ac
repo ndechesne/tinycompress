@@ -18,6 +18,10 @@ AC_PROG_MAKE_SET
 AM_PROG_CC_C_O
 
 # Checks for libraries.
+PKG_CHECK_MODULES([AVCODEC], [libavcodec >= 3.0.7])
+PKG_CHECK_MODULES([AVFORMAT], [libavformat >= 3.0.7])
+PKG_CHECK_MODULES([AVUTIL], [libavutil >= 3.0.7])
+
 
 # Checks for typedefs, structures, and compiler characteristics.
 

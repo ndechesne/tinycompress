@@ -72,6 +72,10 @@
 #include "sound/compress_params.h"
 #include "tinycompress/tinycompress.h"
 #include "tinycompress/tinymp3.h"
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/adler32.h>
+
 
 static int verbose;
 static const unsigned int DEFAULT_CODEC_ID = SND_AUDIOCODEC_PCM;
@@ -245,6 +249,7 @@ int main(int argc, char **argv)
 	exit(EXIT_SUCCESS);
 }
 
+
 void get_codec_mp3(FILE *file, struct compr_config *config,
 		struct snd_codec *codec)
 {
@@ -274,6 +279,41 @@ void get_codec_mp3(FILE *file, struct compr_config *config,
 		exit(EXIT_FAILURE);
 	}
 	codec->bit_rate = bits;
+	codec->rate_control = 0;
+	codec->profile = 0;
+	codec->level = 0;
+	codec->ch_mode = 0;
+	codec->format = 0;
+}
+
+void get_codec_mp3_new(char* file, struct compr_config *config,
+		struct snd_codec *codec)
+{
+	AVFormatContext *avctx=NULL;
+	AVCodecContext *c;
+	avformat_open_input(&avctx, file, NULL, NULL);
+	avformat_find_stream_info(avctx, NULL);
+	av_dump_format(avctx, -1, file, 0);
+
+	/* assume only 1 stream in the media file */
+	c = avctx->streams[0]->codec;
+
+	if (c->codec_type == AVMEDIA_TYPE_AUDIO)
+		printf("AUDIO STREAM FOUND\n");
+
+	if (c->codec_id == AV_CODEC_ID_MP3)
+		printf("MP3 CODEC FOUND\n");
+
+	codec->id = SND_AUDIOCODEC_MP3;
+	codec->ch_in = c->channels;
+	codec->ch_out = c->channels;
+	codec->sample_rate = c->sample_rate;
+	if (!codec->sample_rate) {
+		fprintf(stderr, "invalid sample rate %d\n", codec->sample_rate);
+		fclose(file);
+		exit(EXIT_FAILURE);
+	}
+	codec->bit_rate = c->bit_rate;
 	codec->rate_control = 0;
 	codec->profile = 0;
 	codec->level = 0;
@@ -318,7 +358,7 @@ void play_samples(char *name, unsigned int card, unsigned int device,
 
 	switch (codec_id) {
 	case SND_AUDIOCODEC_MP3:
-		get_codec_mp3(file, &config, &codec);
+		get_codec_mp3_new(name, &config, &codec);
 		break;
 	case SND_AUDIOCODEC_IEC61937:
 		get_codec_iec(file, &config, &codec);
